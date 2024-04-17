@@ -425,7 +425,7 @@ impl<'a, 'b> GGUFMetadataReader<'a, 'b> {
 }
 
 pub struct GGUFMetadata<'a> {
-    metadata_kv: HashMap<String, GGUFMetadataValue<'a>>,
+    pub metadata_kv: HashMap<String, GGUFMetadataValue<'a>>,
 }
 
 macro_rules! define_gguf_metadata_get_primitive_fn {
@@ -784,6 +784,10 @@ impl<'a> GGUFFile<'a> {
     }
 
     pub fn get_tensor_info(&self, name: &str) -> Option<GGUFTensorInfo> {
+        println!("\n\n");
+        for ti in self.tensor_infos.iter() {
+            println!("--tensor name={:?}", ti.name());
+        }
         self.tensor_infos
             .iter()
             .find(|ti| ti.name() == name)

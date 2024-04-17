@@ -173,6 +173,7 @@ impl<'a, T: Tensor> Llama2Runner<T> {
             ModelArchitecture::Llama => self.forward_llama(tokens, pos)?,
             ModelArchitecture::Gemma => self.forward_gemma(tokens, pos)?,
             ModelArchitecture::Qwen2 => self.forward_qwen2(tokens, pos)?,
+            ModelArchitecture::Phi2 => todo!(),
         };
 
         let mut x_final = T::alloc(

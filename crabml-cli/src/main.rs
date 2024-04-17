@@ -26,7 +26,8 @@ static ALLOC: jemallocator::Jemalloc = jemallocator::Jemalloc;
 #[derive(Parser, Debug)]
 struct CommandArgs {
     /// The checkpoint file to load
-    #[arg(short, long, default_value_t = format!("./testdata/tinyllamas-stories-15m-f32.gguf"))]
+    //#[arg(short, long, default_value_t = format!("./testdata/tinyllamas-stories-15m-f32.gguf"))]
+    #[arg(short, long, default_value_t = format!("./testdata/phi-2.Q6_K.gguf"))]
     model: String,
 
     // The number of tokens to generate
