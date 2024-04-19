@@ -25,7 +25,7 @@ pub enum ModelArchitecture {
     Llama,
     Gemma,
     Qwen2,
-    Phi2
+    Phi2,
 }
 
 #[derive(Debug, Clone)]
@@ -59,100 +59,100 @@ pub struct Llama2Weights<T: Tensor> {
     // weights for rmsnorms
     pub rms_att_weight: Vec<T>, // (layer, dim) rmsnorm weights
     pub rms_ffn_weight: Vec<T>, // (layer, dim)
+    pub rms_att_bias: Vec<T>,
     // weights for matmuls
     pub wq: Vec<T>, // (layer, embedding_dim, embedding_dim)
     pub wk: Vec<T>, // (layer, kv_dim, embedding_dim)
     pub wv: Vec<T>, // (layer, kv_dim, embedding_dim)
     pub wo: Vec<T>, // (layer, embedding_dim, embedding_dim)
+    pub wqkv: Vec<T>,
     pub bq: Vec<T>, // (layer, embedding_dim), bias for q, if not have bias, it's vec![]
     pub bk: Vec<T>, // (layer, embedding_dim), bias for k
     pub bv: Vec<T>, // (layer, embedding_dim), bias for v
+    pub bo: Vec<T>,
+    pub bqkv: Vec<T>,
     // weights for ffn
     pub ffn_gate_weight: Vec<T>, // (layer, hidden_dim, embedding_dim)
     pub ffn_down_weight: Vec<T>, // (layer, embedding_dim, hidden_dim)
     pub ffn_up_weight: Vec<T>,   // (layer, hidden_dim, embedding_dim)
+    pub ffn_down_bias: Vec<T>,
+    pub ffn_up_bias: Vec<T>,
     // final rmsnorm
     pub rms_final_weight: T, // (dim, )
     // (optional) classifier weights for the logits, on the last layer
     pub output_weight: Option<T>, // (vocab_size, dim)
 }
 
-/**
-struct llama_layer {
-    // normalization
-    struct ggml_tensor * attn_norm;
-    struct ggml_tensor * attn_norm_b;
-    struct ggml_tensor * attn_norm_2;
-    struct ggml_tensor * attn_norm_2_b;
-    struct ggml_tensor * attn_q_norm;
-    struct ggml_tensor * attn_q_norm_b;
-    struct ggml_tensor * attn_k_norm;
-    struct ggml_tensor * attn_k_norm_b;
-    struct ggml_tensor * attn_out_norm;
-    struct ggml_tensor * attn_out_norm_b;
-
-    // attention
-    struct ggml_tensor * wq;
-    struct ggml_tensor * wk;
-    struct ggml_tensor * wv;
-    struct ggml_tensor * wo;
-    struct ggml_tensor * wqkv;
-
-    // attention bias
-    struct ggml_tensor * bq;
-    struct ggml_tensor * bk;
-    struct ggml_tensor * bv;
-    struct ggml_tensor * bo;
-    struct ggml_tensor * bqkv;
-
-    // normalization
-    struct ggml_tensor * ffn_norm;
-    struct ggml_tensor * ffn_norm_b;
-    struct ggml_tensor * layer_out_norm;
-    struct ggml_tensor * layer_out_norm_b;
-
-    // ff
-    struct ggml_tensor * ffn_gate; // w1
-    struct ggml_tensor * ffn_down; // w2
-    struct ggml_tensor * ffn_up;   // w3
-
-    // ff MoE
-    struct ggml_tensor * ffn_gate_inp;
-    struct ggml_tensor * ffn_gate_exps;
-    struct ggml_tensor * ffn_down_exps;
-    struct ggml_tensor * ffn_up_exps ;
-
-    // ff shared expert (shexp)
-    struct ggml_tensor * ffn_gate_inp_shexp;
-    struct ggml_tensor * ffn_gate_shexp;
-    struct ggml_tensor * ffn_down_shexp;
-    struct ggml_tensor * ffn_up_shexp;
-
-    // ff bias
-    struct ggml_tensor * ffn_down_b; // b2
-    struct ggml_tensor * ffn_up_b;   // b3
-    struct ggml_tensor * ffn_act;
-
-    // mamba proj
-    struct ggml_tensor * ssm_in;
-    struct ggml_tensor * ssm_x;
-    struct ggml_tensor * ssm_dt;
-    struct ggml_tensor * ssm_out;
-
-    // mamba
-    struct ggml_tensor * ssm_conv1d;
-    struct ggml_tensor * ssm_a;
-    struct ggml_tensor * ssm_d;
-
-    // mamba bias
-    struct ggml_tensor * ssm_conv1d_b;
-    struct ggml_tensor * ssm_dt_b;
-};
-*/
-
-
-
-
+/// struct llama_layer {
+/// normalization
+/// struct ggml_tensor * attn_norm;
+/// struct ggml_tensor * attn_norm_b;
+/// struct ggml_tensor * attn_norm_2;
+/// struct ggml_tensor * attn_norm_2_b;
+/// struct ggml_tensor * attn_q_norm;
+/// struct ggml_tensor * attn_q_norm_b;
+/// struct ggml_tensor * attn_k_norm;
+/// struct ggml_tensor * attn_k_norm_b;
+/// struct ggml_tensor * attn_out_norm;
+/// struct ggml_tensor * attn_out_norm_b;
+///
+/// attention
+/// struct ggml_tensor * wq;
+/// struct ggml_tensor * wk;
+/// struct ggml_tensor * wv;
+/// struct ggml_tensor * wo;
+/// struct ggml_tensor * wqkv;
+///
+/// attention bias
+/// struct ggml_tensor * bq;
+/// struct ggml_tensor * bk;
+/// struct ggml_tensor * bv;
+/// struct ggml_tensor * bo;
+/// struct ggml_tensor * bqkv;
+///
+/// normalization
+/// struct ggml_tensor * ffn_norm;
+/// struct ggml_tensor * ffn_norm_b;
+/// struct ggml_tensor * layer_out_norm;
+/// struct ggml_tensor * layer_out_norm_b;
+///
+/// ff
+/// struct ggml_tensor * ffn_gate; // w1
+/// struct ggml_tensor * ffn_down; // w2
+/// struct ggml_tensor * ffn_up;   // w3
+///
+/// ff MoE
+/// struct ggml_tensor * ffn_gate_inp;
+/// struct ggml_tensor * ffn_gate_exps;
+/// struct ggml_tensor * ffn_down_exps;
+/// struct ggml_tensor * ffn_up_exps ;
+///
+/// ff shared expert (shexp)
+/// struct ggml_tensor * ffn_gate_inp_shexp;
+/// struct ggml_tensor * ffn_gate_shexp;
+/// struct ggml_tensor * ffn_down_shexp;
+/// struct ggml_tensor * ffn_up_shexp;
+///
+/// ff bias
+/// struct ggml_tensor * ffn_down_b; // b2
+/// struct ggml_tensor * ffn_up_b;   // b3
+/// struct ggml_tensor * ffn_act;
+///
+/// mamba proj
+/// struct ggml_tensor * ssm_in;
+/// struct ggml_tensor * ssm_x;
+/// struct ggml_tensor * ssm_dt;
+/// struct ggml_tensor * ssm_out;
+///
+/// mamba
+/// struct ggml_tensor * ssm_conv1d;
+/// struct ggml_tensor * ssm_a;
+/// struct ggml_tensor * ssm_d;
+///
+/// mamba bias
+/// struct ggml_tensor * ssm_conv1d_b;
+/// struct ggml_tensor * ssm_dt_b;
+/// };
 
 pub trait Llama2Model {
     type T: Tensor;
@@ -285,199 +285,291 @@ impl CpuLlama2ModelLoader {
         let mut wk = vec![];
         let mut wv = vec![];
         let mut wo = vec![];
+        let mut wqkv = vec![];
         let mut bq = vec![];
         let mut bk = vec![];
         let mut bv = vec![];
+        let mut bo = vec![];
+        let mut bqkv = vec![];
+
         let mut ffn_gate_weight = vec![];
         let mut ffn_down_weight = vec![];
         let mut ffn_up_weight = vec![];
+        let mut ffn_up_bias = vec![];
+        let mut ffn_down_bias = vec![];
         let mut rms_att_weight = vec![];
         let mut rms_ffn_weight = vec![];
+        let mut rms_att_bias = vec![];
 
-        println!("n_layers={:?}", n_layers);
-
---tensor name="token_embd.weight"
-
-"""
-blk.0.attn_norm.bias
-blk.0.attn_norm.weight
-blk.0.attn_qkv.bias
-blk.0.attn_qkv.weight
-blk.0.attn_output.bias
-blk.0.attn_output.weight
-
-blk.0.ffn_up.bias
-blk.0.ffn_up.weight
-blk.0.ffn_down.bias
-blk.0.ffn_down.weight
-"""
-
-"""
-blk.0.attn_q.weight
-blk.0.attn_k.weight
-blk.0.attn_v.weight
-blk.0.attn_output.weight
-blk.0.attn_norm.weight
-
-blk.0.ffn_gate.weight
-blk.0.ffn_down.weight
-blk.0.ffn_up.weight
-blk.0.ffn_norm.weight
-"""
-
-llama2 有 attn_q，attn_k，attn_v 
-phi2 有 attn_qkv
-这应该是一个东西吧，phi2 合并到一起了？
-
-Llama2 的 weight name 是这些
-
-blk.0.attn_q.weight
-blk.0.attn_k.weight
-blk.0.attn_v.weight
-blk.0.attn_output.weight
-blk.0.attn_norm.weight
-
-blk.0.ffn_down.weight
-blk.0.ffn_up.weight
-blk.0.ffn_gate.weight
-blk.0.ffn_norm.weight
-
-phi2 的 weight name 是这些
-
-blk.0.attn_norm.bias
-blk.0.attn_norm.weight
-blk.0.attn_qkv.bias
-blk.0.attn_qkv.weight
-blk.0.attn_output.bias
-blk.0.attn_output.weight
-
-blk.0.ffn_up.bias
-blk.0.ffn_up.weight
-blk.0.ffn_down.bias
-blk.0.ffn_down.weight
-
-
-这些参数有对应关系吗？感觉没法放到 Llama2Weights 里面，单独定义一个 Phi2Weights 怎么样？
-
-llm 
-        LLM_ARCH_LLAMA,
-        {
-            { LLM_TENSOR_TOKEN_EMBD,      "token_embd" },
-            { LLM_TENSOR_OUTPUT_NORM,     "output_norm" },
-            { LLM_TENSOR_OUTPUT,          "output" },
-            { LLM_TENSOR_ROPE_FREQS,      "rope_freqs" },
-            { LLM_TENSOR_ATTN_NORM,       "blk.%d.attn_norm" },
-            { LLM_TENSOR_ATTN_Q,          "blk.%d.attn_q" },
-            { LLM_TENSOR_ATTN_K,          "blk.%d.attn_k" },
-            { LLM_TENSOR_ATTN_V,          "blk.%d.attn_v" },
-            { LLM_TENSOR_ATTN_OUT,        "blk.%d.attn_output" },
-            { LLM_TENSOR_ATTN_ROT_EMBD,   "blk.%d.attn_rot_embd" },
-            { LLM_TENSOR_FFN_GATE_INP,    "blk.%d.ffn_gate_inp" },
-            { LLM_TENSOR_FFN_NORM,        "blk.%d.ffn_norm" },
-            { LLM_TENSOR_FFN_GATE,        "blk.%d.ffn_gate" },
-            { LLM_TENSOR_FFN_DOWN,        "blk.%d.ffn_down" },
-            { LLM_TENSOR_FFN_UP,          "blk.%d.ffn_up" },
-            { LLM_TENSOR_FFN_GATE_EXP,    "blk.%d.ffn_gate.%d" },
-            { LLM_TENSOR_FFN_DOWN_EXP,    "blk.%d.ffn_down.%d" },
-            { LLM_TENSOR_FFN_UP_EXP,      "blk.%d.ffn_up.%d" },
-            { LLM_TENSOR_FFN_GATE_EXPS,   "blk.%d.ffn_gate_exps" },
-            { LLM_TENSOR_FFN_DOWN_EXPS,   "blk.%d.ffn_down_exps" },
-            { LLM_TENSOR_FFN_UP_EXPS,     "blk.%d.ffn_up_exps" },
-        },
-
-
-        LLM_ARCH_PHI2,
-        {
-            { LLM_TENSOR_TOKEN_EMBD,      "token_embd" },
-            { LLM_TENSOR_OUTPUT_NORM,     "output_norm" },
-            { LLM_TENSOR_OUTPUT,          "output" },
-            { LLM_TENSOR_ATTN_NORM,       "blk.%d.attn_norm" },
-            { LLM_TENSOR_ATTN_QKV,        "blk.%d.attn_qkv" },
-            { LLM_TENSOR_ATTN_OUT,        "blk.%d.attn_output" },
-            { LLM_TENSOR_FFN_DOWN,        "blk.%d.ffn_down" },
-            { LLM_TENSOR_FFN_UP,          "blk.%d.ffn_up" },
-        },
-    },
-
-
-
-        for layer in 0..n_layers {
-            wq.push(self.load_tensor(
-                gf,
-                &format!("blk.{}.attn_q.weight", layer),
-                device.clone(),
-            )?);
-            wk.push(self.load_tensor(
-                gf,
-                &format!("blk.{}.attn_k.weight", layer),
-                device.clone(),
-            )?);
-            wv.push(self.load_tensor(
-                gf,
-                &format!("blk.{}.attn_v.weight", layer),
-                device.clone(),
-            )?);
-            wo.push(self.load_tensor(
-                gf,
-                &format!("blk.{}.attn_output.weight", layer),
-                device.clone(),
-            )?);
-            // (hidden_dim:172, embedding_dim:64)
-            ffn_gate_weight.push(self.load_tensor(
-                gf,
-                &format!("blk.{}.ffn_gate.weight", layer),
-                device.clone(),
-            )?);
-            ffn_down_weight.push(self.load_tensor(
-                gf,
-                &format!("blk.{}.ffn_down.weight", layer),
-                device.clone(),
-            )?);
-            ffn_up_weight.push(self.load_tensor(
-                gf,
-                &format!("blk.{}.ffn_up.weight", layer),
-                device.clone(),
-            )?);
-            rms_att_weight.push(
-                self.load_tensor(
-                    gf,
-                    &format!("blk.{}.attn_norm.weight", layer),
-                    device.clone(),
-                )?
-                .dequantize(GGMLType::F32)?,
-            );
-            rms_ffn_weight.push(
-                self.load_tensor(
-                    gf,
-                    &format!("blk.{}.ffn_norm.weight", layer),
-                    device.clone(),
-                )?
-                .dequantize(GGMLType::F32)?,
-            );
+        /// --tensor name="token_embd.weight"
+        ///
+        /// """
+        /// blk.0.attn_norm.bias
+        /// blk.0.attn_norm.weight
+        /// blk.0.attn_qkv.bias
+        /// blk.0.attn_qkv.weight
+        /// blk.0.attn_output.bias
+        /// blk.0.attn_output.weight
+        ///
+        /// blk.0.ffn_up.bias
+        /// blk.0.ffn_up.weight
+        /// blk.0.ffn_down.bias
+        /// blk.0.ffn_down.weight
+        /// """
+        ///
+        /// """
+        /// blk.0.attn_q.weight
+        /// blk.0.attn_k.weight
+        /// blk.0.attn_v.weight
+        /// blk.0.attn_output.weight
+        /// blk.0.attn_norm.weight
+        ///
+        /// blk.0.ffn_gate.weight
+        /// blk.0.ffn_down.weight
+        /// blk.0.ffn_up.weight
+        /// blk.0.ffn_norm.weight
+        /// """
+        ///
+        ///
+        /// llm
+        /// LLM_ARCH_LLAMA,
+        /// {
+        /// { LLM_TENSOR_TOKEN_EMBD,      "token_embd" },
+        /// { LLM_TENSOR_OUTPUT_NORM,     "output_norm" },
+        /// { LLM_TENSOR_OUTPUT,          "output" },
+        /// { LLM_TENSOR_ROPE_FREQS,      "rope_freqs" },
+        /// { LLM_TENSOR_ATTN_NORM,       "blk.%d.attn_norm" },
+        /// { LLM_TENSOR_ATTN_Q,          "blk.%d.attn_q" },
+        /// { LLM_TENSOR_ATTN_K,          "blk.%d.attn_k" },
+        /// { LLM_TENSOR_ATTN_V,          "blk.%d.attn_v" },
+        /// { LLM_TENSOR_ATTN_OUT,        "blk.%d.attn_output" },
+        /// { LLM_TENSOR_ATTN_ROT_EMBD,   "blk.%d.attn_rot_embd" },
+        /// { LLM_TENSOR_FFN_GATE_INP,    "blk.%d.ffn_gate_inp" },
+        /// { LLM_TENSOR_FFN_NORM,        "blk.%d.ffn_norm" },
+        /// { LLM_TENSOR_FFN_GATE,        "blk.%d.ffn_gate" },
+        /// { LLM_TENSOR_FFN_DOWN,        "blk.%d.ffn_down" },
+        /// { LLM_TENSOR_FFN_UP,          "blk.%d.ffn_up" },
+        /// { LLM_TENSOR_FFN_GATE_EXP,    "blk.%d.ffn_gate.%d" },
+        /// { LLM_TENSOR_FFN_DOWN_EXP,    "blk.%d.ffn_down.%d" },
+        /// { LLM_TENSOR_FFN_UP_EXP,      "blk.%d.ffn_up.%d" },
+        /// { LLM_TENSOR_FFN_GATE_EXPS,   "blk.%d.ffn_gate_exps" },
+        /// { LLM_TENSOR_FFN_DOWN_EXPS,   "blk.%d.ffn_down_exps" },
+        /// { LLM_TENSOR_FFN_UP_EXPS,     "blk.%d.ffn_up_exps" },
+        /// },
+        ///
+        ///
+        /// LLM_ARCH_PHI2,
+        /// {
+        /// { LLM_TENSOR_TOKEN_EMBD,      "token_embd" },
+        /// { LLM_TENSOR_OUTPUT_NORM,     "output_norm" },
+        /// { LLM_TENSOR_OUTPUT,          "output" },
+        /// { LLM_TENSOR_ATTN_NORM,       "blk.%d.attn_norm" },
+        /// { LLM_TENSOR_ATTN_QKV,        "blk.%d.attn_qkv" },
+        /// { LLM_TENSOR_ATTN_OUT,        "blk.%d.attn_output" },
+        /// { LLM_TENSOR_FFN_DOWN,        "blk.%d.ffn_down" },
+        /// { LLM_TENSOR_FFN_UP,          "blk.%d.ffn_up" },
+        /// },
+        /// },
+        match gf.architecture() {
+            "llama" | "gemma" => {
+                for layer in 0..n_layers {
+                    wq.push(self.load_tensor(
+                        gf,
+                        &format!("blk.{}.attn_q.weight", layer),
+                        device.clone(),
+                    )?);
+                    wk.push(self.load_tensor(
+                        gf,
+                        &format!("blk.{}.attn_k.weight", layer),
+                        device.clone(),
+                    )?);
+                    wv.push(self.load_tensor(
+                        gf,
+                        &format!("blk.{}.attn_v.weight", layer),
+                        device.clone(),
+                    )?);
+                    wo.push(self.load_tensor(
+                        gf,
+                        &format!("blk.{}.attn_output.weight", layer),
+                        device.clone(),
+                    )?);
+                    // (hidden_dim:172, embedding_dim:64)
+                    ffn_gate_weight.push(self.load_tensor(
+                        gf,
+                        &format!("blk.{}.ffn_gate.weight", layer),
+                        device.clone(),
+                    )?);
+                    ffn_down_weight.push(self.load_tensor(
+                        gf,
+                        &format!("blk.{}.ffn_down.weight", layer),
+                        device.clone(),
+                    )?);
+                    ffn_up_weight.push(self.load_tensor(
+                        gf,
+                        &format!("blk.{}.ffn_up.weight", layer),
+                        device.clone(),
+                    )?);
+                    rms_att_weight.push(
+                        self.load_tensor(
+                            gf,
+                            &format!("blk.{}.attn_norm.weight", layer),
+                            device.clone(),
+                        )?
+                        .dequantize(GGMLType::F32)?,
+                    );
+                    rms_ffn_weight.push(
+                        self.load_tensor(
+                            gf,
+                            &format!("blk.{}.ffn_norm.weight", layer),
+                            device.clone(),
+                        )?
+                        .dequantize(GGMLType::F32)?,
+                    );
+                }
+            }
+            "qwen2" => {
+                for layer in 0..n_layers {
+                    wq.push(self.load_tensor(
+                        gf,
+                        &format!("blk.{}.attn_q.weight", layer),
+                        device.clone(),
+                    )?);
+                    wk.push(self.load_tensor(
+                        gf,
+                        &format!("blk.{}.attn_k.weight", layer),
+                        device.clone(),
+                    )?);
+                    wv.push(self.load_tensor(
+                        gf,
+                        &format!("blk.{}.attn_v.weight", layer),
+                        device.clone(),
+                    )?);
+                    wo.push(self.load_tensor(
+                        gf,
+                        &format!("blk.{}.attn_output.weight", layer),
+                        device.clone(),
+                    )?);
+                    // (hidden_dim:172, embedding_dim:64)
+                    ffn_gate_weight.push(self.load_tensor(
+                        gf,
+                        &format!("blk.{}.ffn_gate.weight", layer),
+                        device.clone(),
+                    )?);
+                    ffn_down_weight.push(self.load_tensor(
+                        gf,
+                        &format!("blk.{}.ffn_down.weight", layer),
+                        device.clone(),
+                    )?);
+                    ffn_up_weight.push(self.load_tensor(
+                        gf,
+                        &format!("blk.{}.ffn_up.weight", layer),
+                        device.clone(),
+                    )?);
+                    rms_att_weight.push(
+                        self.load_tensor(
+                            gf,
+                            &format!("blk.{}.attn_norm.weight", layer),
+                            device.clone(),
+                        )?
+                        .dequantize(GGMLType::F32)?,
+                    );
+                    rms_ffn_weight.push(
+                        self.load_tensor(
+                            gf,
+                            &format!("blk.{}.ffn_norm.weight", layer),
+                            device.clone(),
+                        )?
+                        .dequantize(GGMLType::F32)?,
+                    );
+                    bq.push(self.load_tensor(
+                        gf,
+                        &format!("blk.{}.attn_q.bias", layer),
+                        device.clone(),
+                    )?);
+                    bk.push(self.load_tensor(
+                        gf,
+                        &format!("blk.{}.attn_k.bias", layer),
+                        device.clone(),
+                    )?);
+                    bv.push(self.load_tensor(
+                        gf,
+                        &format!("blk.{}.attn_v.bias", layer),
+                        device.clone(),
+                    )?);
+                }
+            }
+            "phi2" => {
+                for layer in 0..n_layers {
+                    wqkv.push(self.load_tensor(
+                        gf,
+                        &format!("blk.{}.attn_qkv.weight", layer),
+                        device.clone(),
+                    )?);
+                    bqkv.push(self.load_tensor(
+                        gf,
+                        &format!("blk.{}.attn_qkv.bias", layer),
+                        device.clone(),
+                    )?);
+                    wo.push(self.load_tensor(
+                        gf,
+                        &format!("blk.{}.attn_output.weight", layer),
+                        device.clone(),
+                    )?);
+                    bo.push(self.load_tensor(
+                        gf,
+                        &format!("blk.{}.attn_output.bias", layer),
+                        device.clone(),
+                    )?);
+                    rms_att_weight.push(
+                        self.load_tensor(
+                            gf,
+                            &format!("blk.{}.attn_norm.weight", layer),
+                            device.clone(),
+                        )?
+                        .dequantize(GGMLType::F32)?,
+                    );
+                    rms_att_bias.push(
+                        self.load_tensor(
+                            gf,
+                            &format!("blk.{}.attn_norm.bias", layer),
+                            device.clone(),
+                        )?
+                        .dequantize(GGMLType::F32)?,
+                    );
+                    ffn_down_weight.push(self.load_tensor(
+                        gf,
+                        &format!("blk.{}.ffn_down.weight", layer),
+                        device.clone(),
+                    )?);
+                    ffn_up_weight.push(self.load_tensor(
+                        gf,
+                        &format!("blk.{}.ffn_up.weight", layer),
+                        device.clone(),
+                    )?);
+                    ffn_down_bias.push(self.load_tensor(
+                        gf,
+                        &format!("blk.{}.ffn_down.bias", layer),
+                        device.clone(),
+                    )?);
+                    ffn_up_bias.push(self.load_tensor(
+                        gf,
+                        &format!("blk.{}.ffn_up.bias", layer),
+                        device.clone(),
+                    )?);
+                }
+            }
+            arch => {
+                return Err(Error {
+                    kind: ErrorKind::ModelError,
+                    message: format!("unsupported architecture {}", arch),
+                    cause: None,
+                });
+            }
         }
+
         let rms_final_weight = self
             .load_tensor(gf, "output_norm.weight", device.clone())?
             .dequantize(GGMLType::F32)?;
-
-        if gf.architecture() == "qwen2" {
-            for layer in 0..n_layers {
-                bq.push(self.load_tensor(
-                    gf,
-                    &format!("blk.{}.attn_q.bias", layer),
-                    device.clone(),
-                )?);
-                bk.push(self.load_tensor(
-                    gf,
-                    &format!("blk.{}.attn_k.bias", layer),
-                    device.clone(),
-                )?);
-                bv.push(self.load_tensor(
-                    gf,
-                    &format!("blk.{}.attn_v.bias", layer),
-                    device.clone(),
-                )?);
-            }
-        }
 
         // in Gemma, the output weight is None
         let output_weight = self.load_tensor_optional(gf, "output.weight", device)?;
@@ -488,14 +580,20 @@ llm
             wk,
             wv,
             wo,
+            wqkv,
             bq,
             bk,
             bv,
+            bo,
+            bqkv,
             ffn_gate_weight,
             ffn_down_weight,
             ffn_up_weight,
+            ffn_down_bias,
+            ffn_up_bias,
             rms_att_weight,
             rms_ffn_weight,
+            rms_att_bias,
             rms_final_weight,
             output_weight,
         })
@@ -511,20 +609,10 @@ llm
             None => return Ok(None),
             Some(info) => info.clone(),
         };
-        println!("\n\n---222----info.name={:?}", info.name());
-        //println!("---222----info.dimensions={:?}", info.dimensions());
-        //println!("---222----info.typ={:?}", info.typ());
-
-
-
 
         // the dimensions stored in GGUF seems in a reverse order of numpy's shape
         let dims = info.dimensions().iter().rev().copied().collect::<Vec<_>>();
         let tensor = CpuTensor::from_bytes(info.data(), info.typ(), &dims, device.clone())?;
-
-        //println!("\n---222----dims={:?}", dims);
-        //println!("\n---222----tensor={:?}", tensor);
-
 
         Ok(Some(tensor))
     }
@@ -535,9 +623,6 @@ llm
         name: &str,
         device: CpuTensorDeviceRef<'a>,
     ) -> Result<CpuTensor<'a>> {
-        println!("\n===gf name={:?}", name);
-
-
         match self.load_tensor_optional(gf, name, device)? {
             None => Err(Error {
                 kind: ErrorKind::TensorNotFound,
@@ -549,8 +634,6 @@ llm
     }
 
     fn load_tokenizer(&self, gf: &GGUFFile) -> Result<Tokenizer> {
-        // println!("{:?}", gf.metadata().as_hashmap().keys());
-        // println!("{:?}", gf.metadata().get_string("tokenizer.ggml.model"));
         let vocab = gf
             .metadata()
             .get_string_array("tokenizer.ggml.tokens")
@@ -607,24 +690,8 @@ llm
         }
     }
 
-// llama
-//++++key----"tokenizer.ggml.scores"
-//++++----key----"llama.context_length"
-//++++----key----"llama.tensor_data_layout"
-//++++----key----"llama.attention.layer_norm_rms_epsilon"
-
-
-// phi2
-//+++----key----"general.file_type"
-//+++----key----"general.quantization_version"
-//+++----key----"tokenizer.ggml.add_bos_token"
-//+++----key----"tokenizer.ggml.merges"
-
-
     fn load_config(&self, gf: &GGUFFile) -> Result<Llama2Config> {
         let meta = gf.metadata();
-        //println!("\n---metadata={:?}", gf.metadata());
-
         for key in meta.metadata_kv.keys() {
             println!("===----key----{:?}", key);
         }
@@ -675,13 +742,12 @@ llm
             .get_u32(&format!("{}.attention.head_count_kv", prefix))
             .unwrap() as usize;
         let seq_len = if prefix != "phi2" {
-                gf
-                .metadata()
+            gf.metadata()
                 .get_u32(&format!("{}.context_length", prefix))
                 .unwrap() as usize
-            } else {
-                0
-            };
+        } else {
+            0
+        };
         let vocab_size = gf
             .metadata()
             .get_string_array("tokenizer.ggml.tokens")
@@ -692,10 +758,9 @@ llm
             .get_u32(&format!("{}.embedding_length", prefix))
             .unwrap() as usize;
         let rms_norm_eps = if prefix != "phi2" {
-            gf
-            .metadata()
-            .get_f32(&format!("{}.attention.layer_norm_rms_epsilon", prefix))
-            .unwrap()
+            gf.metadata()
+                .get_f32(&format!("{}.attention.layer_norm_rms_epsilon", prefix))
+                .unwrap()
         } else {
             0.0
         };
@@ -791,6 +856,16 @@ impl WgpuLlama2Model {
             .iter()
             .map(|t| Self::convert_cpu_tensor(t, device.clone()))
             .collect::<Result<Vec<_>>>()?;
+        let wo = weights
+            .wo
+            .iter()
+            .map(|t| Self::convert_cpu_tensor(t, device.clone()))
+            .collect::<Result<Vec<_>>>()?;
+        let wqkv = weights
+            .wqkv
+            .iter()
+            .map(|t| Self::convert_cpu_tensor(t, device.clone()))
+            .collect::<Result<Vec<_>>>()?;
         let bq = weights
             .bq
             .iter()
@@ -806,28 +881,48 @@ impl WgpuLlama2Model {
             .iter()
             .map(|t| Self::convert_cpu_tensor(t, device.clone()))
             .collect::<Result<Vec<_>>>()?;
-        let wo = weights
-            .wo
+        let bo = weights
+            .bo
             .iter()
             .map(|t| Self::convert_cpu_tensor(t, device.clone()))
             .collect::<Result<Vec<_>>>()?;
-        let w1 = weights
+        let bqkv = weights
+            .bqkv
+            .iter()
+            .map(|t| Self::convert_cpu_tensor(t, device.clone()))
+            .collect::<Result<Vec<_>>>()?;
+        let ffn_gate_weight = weights
             .ffn_gate_weight
             .iter()
             .map(|t| Self::convert_cpu_tensor(t, device.clone()))
             .collect::<Result<Vec<_>>>()?;
-        let w2 = weights
+        let ffn_down_weight = weights
             .ffn_down_weight
             .iter()
             .map(|t| Self::convert_cpu_tensor(t, device.clone()))
             .collect::<Result<Vec<_>>>()?;
-        let w3 = weights
+        let ffn_up_weight = weights
             .ffn_up_weight
+            .iter()
+            .map(|t| Self::convert_cpu_tensor(t, device.clone()))
+            .collect::<Result<Vec<_>>>()?;
+        let ffn_down_bias = weights
+            .ffn_down_bias
+            .iter()
+            .map(|t| Self::convert_cpu_tensor(t, device.clone()))
+            .collect::<Result<Vec<_>>>()?;
+        let ffn_up_bias = weights
+            .ffn_up_bias
             .iter()
             .map(|t| Self::convert_cpu_tensor(t, device.clone()))
             .collect::<Result<Vec<_>>>()?;
         let rms_att_weight = weights
             .rms_att_weight
+            .iter()
+            .map(|t| Self::convert_cpu_tensor(t, device.clone()))
+            .collect::<Result<Vec<_>>>()?;
+        let rms_att_bias = weights
+            .rms_att_bias
             .iter()
             .map(|t| Self::convert_cpu_tensor(t, device.clone()))
             .collect::<Result<Vec<_>>>()?;
@@ -847,14 +942,20 @@ impl WgpuLlama2Model {
             wk,
             wv,
             wo,
+            wqkv,
             bq,
             bk,
             bv,
-            ffn_gate_weight: w1,
-            ffn_down_weight: w2,
-            ffn_up_weight: w3,
+            bo,
+            bqkv,
+            ffn_gate_weight,
+            ffn_down_weight,
+            ffn_up_weight,
+            ffn_down_bias,
+            ffn_up_bias,
             rms_att_weight,
             rms_ffn_weight,
+            rms_att_bias,
             rms_final_weight,
             output_weight: wcls,
         };

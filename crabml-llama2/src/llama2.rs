@@ -173,7 +173,7 @@ impl<'a, T: Tensor> Llama2Runner<T> {
             ModelArchitecture::Llama => self.forward_llama(tokens, pos)?,
             ModelArchitecture::Gemma => self.forward_gemma(tokens, pos)?,
             ModelArchitecture::Qwen2 => self.forward_qwen2(tokens, pos)?,
-            ModelArchitecture::Phi2 => todo!(),
+            ModelArchitecture::Phi2 => self.forward_phi2(tokens, pos)?,
         };
 
         let mut x_final = T::alloc(
@@ -332,6 +332,10 @@ impl<'a, T: Tensor> Llama2Runner<T> {
         };
 
         Ok(x)
+    }
+
+    fn forward_phi2(&mut self, tokens: &[usize], pos: usize) -> Result<T> {
+        todo!()
     }
 
     // The differences between GEMMA and LLAMA are:
