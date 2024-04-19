@@ -703,7 +703,28 @@ impl CpuLlama2ModelLoader {
             .to_string();
 
         println!("tokenizer_kind={:?}", tokenizer_kind);
-
+/**
+===----key----"tokenizer.ggml.bos_token_id"
+===----key----"phi2.attention.layer_norm_epsilon"
+===----key----"tokenizer.ggml.token_type"
+===----key----"phi2.embedding_length"
+===----key----"phi2.attention.head_count_kv"
+===----key----"tokenizer.ggml.tokens"
+===----key----"phi2.rope.dimension_count"
+===----key----"tokenizer.ggml.eos_token_id"
+===----key----"tokenizer.ggml.merges"
+===----key----"tokenizer.ggml.model"
+===----key----"general.quantization_version"
+===----key----"phi2.feed_forward_length"
+===----key----"general.name"
+===----key----"phi2.context_length"
+===----key----"general.architecture"
+===----key----"phi2.block_count"
+===----key----"phi2.attention.head_count"
+===----key----"tokenizer.ggml.unknown_token_id"
+===----key----"general.file_type"
+===----key----"tokenizer.ggml.add_bos_token"
+*/
         // let rope_dims = gf.metadata().get_u32("llama.rope.dimension_count").unwrap();
         let (architecture, prefix) = match gf.metadata().get_string("general.architecture").unwrap()
         {
@@ -741,13 +762,9 @@ impl CpuLlama2ModelLoader {
             .metadata()
             .get_u32(&format!("{}.attention.head_count_kv", prefix))
             .unwrap() as usize;
-        let seq_len = if prefix != "phi2" {
-            gf.metadata()
+        let seq_len = gf.metadata()
                 .get_u32(&format!("{}.context_length", prefix))
-                .unwrap() as usize
-        } else {
-            0
-        };
+                .unwrap() as usize;
         let vocab_size = gf
             .metadata()
             .get_string_array("tokenizer.ggml.tokens")
@@ -757,12 +774,14 @@ impl CpuLlama2ModelLoader {
             .metadata()
             .get_u32(&format!("{}.embedding_length", prefix))
             .unwrap() as usize;
-        let rms_norm_eps = if prefix != "phi2" {
+        let rms_norm_eps = if prefix == "phi2" {
+            gf.metadata()
+                .get_f32(&format!("{}.attention.layer_norm_epsilon", prefix))
+                .unwrap()
+        } else {
             gf.metadata()
                 .get_f32(&format!("{}.attention.layer_norm_rms_epsilon", prefix))
                 .unwrap()
-        } else {
-            0.0
         };
         let n_rot = gf
             .metadata()

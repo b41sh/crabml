@@ -784,10 +784,10 @@ impl<'a> GGUFFile<'a> {
     }
 
     pub fn get_tensor_info(&self, name: &str) -> Option<GGUFTensorInfo> {
-        println!("\n\n");
-        for ti in self.tensor_infos.iter() {
-            println!("--tensor name={:?}", ti.name());
-        }
+        //println!("\n\n");
+        //for ti in self.tensor_infos.iter() {
+        //    println!("--tensor name={:?}", ti.name());
+        //}
         self.tensor_infos
             .iter()
             .find(|ti| ti.name() == name)
