@@ -274,12 +274,10 @@ impl<'a, T: Tensor> Llama2Runner<T> {
         // copy the token embedding into x
         let mut x = T::alloc(&[n_batch, embed_dim], GGMLType::F32, self.device.clone())?;
         x.copy_rows_from(&self.weights.token_embed, tokens)?;
-// 这个 x 应该就是 inputL
         // forward all the layers
         for l in 0..self.conf.n_layers {
             let x_attn_orig = x.dup()?;
 
-            // 这个就是 llm_build_norm
             // attention rmsnorm
             x = {
                 x = x.rms_norm_inplace(self.conf.rms_norm_eps)?;
@@ -288,7 +286,6 @@ impl<'a, T: Tensor> Llama2Runner<T> {
                 x
             };
 
-            // 这个就是 self-attention
             // matmul qkv for every head
             let (q, k, v) = {
                 // wq: (embed_dim, embed_dim) @ x (n_batch, embed_dim, ) => (n_batch, embed_dim, )
@@ -303,7 +300,6 @@ impl<'a, T: Tensor> Llama2Runner<T> {
                 (q, k, v)
             };
 
-            // self-attention 的后半部分
             // ROPE
             let (q, k) = {
                 let q = q.reshape(&[n_batch, n_heads, head_dim])?;
@@ -322,7 +318,6 @@ impl<'a, T: Tensor> Llama2Runner<T> {
             // residual connection back into x
             x = x.add_inplace(&x_attn_orig)?;
 
-            // 这里包了一个函数
             // ffn
             x = self.forward_ffn(x, l, pos, Activation::SiLU)?;
             x = x.with_name(format!("ffn_out:{}:{}", l, pos));
@@ -346,6 +341,22 @@ impl<'a, T: Tensor> Llama2Runner<T> {
         let rope_dim = self.conf.rope_dim.unwrap_or(head_dim);
         let n_batch = tokens.len();
 
+        println!("\n\n\n");
+        println!("embed_dim={:?}", embed_dim);
+        println!("n_heads={:?}", n_heads);
+        println!("n_kv_heads={:?}", n_kv_heads);
+        println!("head_dim={:?}", head_dim);
+        println!("rope_dim={:?}", rope_dim);
+        println!("n_batch={:?}", n_batch);
+
+
+
+        println!("\n\n\n");
+
+        // ?
+        let n_embd_gqa = n_heads * n_kv_heads;
+
+
         // copy the token embedding into x
         let mut x = T::alloc(&[n_batch, embed_dim], GGMLType::F32, self.device.clone())?;
         x.copy_rows_from(&self.weights.token_embed, tokens)?;
@@ -354,7 +365,6 @@ impl<'a, T: Tensor> Llama2Runner<T> {
         for l in 0..self.conf.n_layers {
             let x_attn_orig = x.dup()?;
 
-            // 这个就是 llm_build_norm
             // attention norm
             x = {
                 // diff between rms_norm_eps and norm_eps?
@@ -371,14 +381,10 @@ impl<'a, T: Tensor> Llama2Runner<T> {
                 let qkv = self.weights.wqkv[l].matmul_vec(&x)?;
                 let qkv = qkv.add_inplace(&self.weights.bqkv[l])?;
 
-                //Qcur = ggml_cont(ctx0, ggml_view_2d(ctx0, cur, n_embd,     n_tokens, cur->nb[1], 0*sizeof(float)*(n_embd)));
-                //Qcur = ggml_cont(ctx0, ggml_view_2d(ctx0, cur, n_embd,     n_tokens, cur->nb[1], 0*sizeof(float)*(n_embd)));
-                //Kcur = ggml_cont(ctx0, ggml_view_2d(ctx0, cur, n_embd_gqa, n_tokens, cur->nb[1], 1*sizeof(float)*(n_embd)));
-                //Vcur = ggml_cont(ctx0, ggml_view_2d(ctx0, cur, n_embd_gqa, n_tokens, cur->nb[1], 1*sizeof(float)*(n_embd + n_embd_gqa)));
-                //todo!()
-                let q = qkv.clone();
-                let k = qkv.clone();
-                let v = qkv.clone();
+                let q = qkv.clone().reshape(&[embed_dim, n_batch])?.contiguous()?;
+                let k = qkv.clone().reshape(&[n_embd_gqa, n_batch])?.contiguous()?;
+                let v = qkv.reshape(&[n_embd_gqa, n_batch])?.contiguous()?;
+
                 (q, k, v)
             };
 
@@ -409,7 +415,6 @@ impl<'a, T: Tensor> Llama2Runner<T> {
             // residual connection back into x
             x = x.add_inplace(&x_attn_orig)?;
 
-            // 这里包了一个函数
             // ffn
             x = self.forward_ffn(x, l, pos, Activation::SiLU)?;
             x = x.with_name(format!("ffn_out:{}:{}", l, pos));
