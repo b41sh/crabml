@@ -390,6 +390,46 @@ self.conf.n_layers=32
         println!("rope_dim={:?}", rope_dim);
         println!("n_batch={:?}", n_batch);
 
+/**
+llama2
+n_embd=2560
+n_head=32
+n_head_kv=32
+n_embd_head_k=80
+n_embd_head_v=80
+n_layer=32
+n_rot=32
+n_ff=10240
+n_ff=10240
+n_embd_head=80   n_embd_head_v
+n_embd_gqa=2560  n_embd_head_v * n_head_kv  80 * 32
+
+ Phi2------
+embed_dim=2560
+n_heads=32
+n_kv_heads=32
+head_dim=80
+rope_dim=32
+n_batch=1
+
+    pub architecture: ModelArchitecture,
+    pub model_name: String,
+    pub chat_template: String,
+    pub embedding_dim: usize, // the dim of embedding
+    pub hidden_dim: usize,
+    pub n_layers: usize,
+    pub n_heads: usize,
+    pub n_kv_heads: usize,
+    pub vocab_size: usize,
+    pub seq_len: usize,
+    pub rms_norm_eps: f32,
+    pub rope_dim: Option<usize>,
+*/
+
+
+
+
+
 
         println!("\n");
 
@@ -407,8 +447,8 @@ self.conf.n_layers=32
 
 
 
-        // ?
-        let n_embd_gqa = n_heads * n_kv_heads;
+        // n_embd_head_v * n_head_kv  80 * 32 = 2560
+        let n_embd_gqa = head_dim * n_kv_heads;
 
         println!("n_embd_gqa={:?}", n_embd_gqa);
         println!("\n\n\n");
@@ -424,6 +464,7 @@ println!("tokens={:?}", tokens);
             let x_attn_orig = x.dup()?;
             //println!("x_attn_orig={:?}", x_attn_orig);
 
+            // llm_build_norm
             // attention norm
             x = {
                 // diff between rms_norm_eps and norm_eps?
@@ -537,27 +578,34 @@ Vcur = ggml_cont(ctx0, ggml_view_2d(ctx0, cur, n_embd_gqa, n_tokens, cur->nb[1],
 
 n_embd_gqa=1024
 */
-               println!("\n\n----okok ---00000---");
+                println!("\n\n----okok ---00000---");
 
-               let mut q = T::alloc(&[n_batch, embed_dim], GGMLType::F32, self.device.clone())?;
-               q.copy_rows_from(&qkv, &[0])?;
-               q = q.reshape(&[embed_dim, n_batch])?.contiguous()?;
-               let mut k = T::alloc(&[n_batch, embed_dim], GGMLType::F32, self.device.clone())?;
-               k.copy_rows_from(&qkv, &[embed_dim])?;
-               k = k.reshape(&[embed_dim, n_batch])?.contiguous()?;
-               let mut v = T::alloc(&[n_batch, embed_dim], GGMLType::F32, self.device.clone())?;
-               v.copy_rows_from(&qkv, &[embed_dim + embed_dim])?;
-               v = v.reshape(&[embed_dim, n_batch])?.contiguous()?;
+                let mut q = T::alloc(&[embed_dim, n_batch], GGMLType::F32, self.device.clone())?;
+                q.copy_rows_from(&qkv, &[0])?;
+                q = q.reshape(&[embed_dim, n_batch])?.contiguous()?;
+                q = q.with_name("Qcur".to_string());
 
-               println!("\n\n----okok---");
+                let mut k = T::alloc(&[embed_dim, n_batch], GGMLType::F32, self.device.clone())?;
+                k.copy_rows_from(&qkv, &[embed_dim])?;
+                k = k.reshape(&[embed_dim, n_batch])?.contiguous()?;
+                k = k.with_name("Kcur".to_string());
+
+                let mut v = T::alloc(&[embed_dim, n_batch], GGMLType::F32, self.device.clone())?;
+                v.copy_rows_from(&qkv, &[embed_dim + n_embd_gqa])?;
+                v = v.reshape(&[embed_dim, n_batch])?.contiguous()?;
+                v = v.with_name("Vcur".to_string());
+
+                println!("\n\n----okok---");
 
 //println!("n_batch={:?} embed_dim={:?}", n_batch, embed_dim);
 //println!("tokens={:?}", tokens);
 //x.copy_rows_from(&self.weights.token_embed, tokens)?;
 
-                q = q.with_name("Qcur".to_string());
-                k = k.with_name("Kcur".to_string());
-                v = v.with_name("Vcur".to_string());
+                //Qcur = ggml_reshape_3d(ctx0, Qcur, n_embd_head, n_head,    n_tokens);
+                //Kcur = ggml_reshape_3d(ctx0, Kcur, n_embd_head, n_head_kv, n_tokens);
+                q = q.reshape(&[embed_dim, n_heads, n_batch])?;
+                k = k.reshape(&[embed_dim, n_kv_heads, n_batch])?;
+
 
 
                 (q, k, v)
