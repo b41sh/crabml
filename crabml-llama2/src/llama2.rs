@@ -203,6 +203,22 @@ impl<'a, T: Tensor> Llama2Runner<T> {
         let rope_dim = self.conf.rope_dim.unwrap_or(head_dim);
         let n_batch = tokens.len();
 
+
+        println!("\n\n\n Llama2---------");
+        println!("embed_dim={:?}", embed_dim);
+        println!("n_heads={:?}", n_heads);
+        println!("n_kv_heads={:?}", n_kv_heads);
+        println!("head_dim={:?}", head_dim);
+        println!("rope_dim={:?}", rope_dim);
+        println!("n_batch={:?}", n_batch);
+
+
+        println!("\n\n\n");
+
+        println!("tokens={:?}", tokens);
+
+        println!("self.conf.n_layers={:?}", self.conf.n_layers);
+
         // copy the token embedding into x
         let mut x = T::alloc(&[n_batch, embed_dim], GGMLType::F32, self.device.clone())?;
         x.copy_rows_from(&self.weights.token_embed, tokens)?;
@@ -210,6 +226,7 @@ impl<'a, T: Tensor> Llama2Runner<T> {
         // forward all the layers
         for l in 0..self.conf.n_layers {
             let x_attn_orig = x.dup()?;
+            //println!("x_attn_orig={:?}", x_attn_orig);
 
             // attention rnsnorm
             x = {
@@ -218,6 +235,7 @@ impl<'a, T: Tensor> Llama2Runner<T> {
                 x = x.with_name(format!("attn_rmsnorm:{}:{}", l, pos));
                 x
             };
+            //println!("new x={:?}", x);
 
             // matmul qkv for every head
             let (q, k, v) = {
@@ -341,7 +359,30 @@ impl<'a, T: Tensor> Llama2Runner<T> {
         let rope_dim = self.conf.rope_dim.unwrap_or(head_dim);
         let n_batch = tokens.len();
 
-        println!("\n\n\n");
+/**
+ Llama2---------
+embed_dim=288
+n_heads=6
+n_kv_heads=6
+head_dim=48
+rope_dim=48
+n_batch=1
+
+tokens=[2978]
+self.conf.n_layers=6
+
+ Phi2------
+embed_dim=2560
+n_heads=32
+n_kv_heads=32
+head_dim=80
+rope_dim=32
+n_batch=1
+
+tokens=[50256]
+self.conf.n_layers=32
+*/
+        println!("\n\n\n Phi2------");
         println!("embed_dim={:?}", embed_dim);
         println!("n_heads={:?}", n_heads);
         println!("n_kv_heads={:?}", n_kv_heads);
@@ -350,12 +391,29 @@ impl<'a, T: Tensor> Llama2Runner<T> {
         println!("n_batch={:?}", n_batch);
 
 
+        println!("\n");
 
-        println!("\n\n\n");
+        println!("tokens={:?}", tokens);
+
+        println!("self.conf.n_layers={:?}", self.conf.n_layers);
+
+/**
+    uint32_t n_embd_v_gqa() const { // dimension of value embeddings across all k-v heads
+        return n_embd_head_v * n_head_kv;
+    }
+        const int64_t n_embd_head = hparams.n_embd_head_v;
+        const int64_t n_embd_gqa  = hparams.n_embd_v_gqa();
+*/
+
+
 
         // ?
         let n_embd_gqa = n_heads * n_kv_heads;
 
+        println!("n_embd_gqa={:?}", n_embd_gqa);
+        println!("\n\n\n");
+println!("n_batch={:?} embed_dim={:?}", n_batch, embed_dim);
+println!("tokens={:?}", tokens);
 
         // copy the token embedding into x
         let mut x = T::alloc(&[n_batch, embed_dim], GGMLType::F32, self.device.clone())?;
@@ -364,6 +422,7 @@ impl<'a, T: Tensor> Llama2Runner<T> {
         // forward all the layers
         for l in 0..self.conf.n_layers {
             let x_attn_orig = x.dup()?;
+            //println!("x_attn_orig={:?}", x_attn_orig);
 
             // attention norm
             x = {
@@ -375,24 +434,146 @@ impl<'a, T: Tensor> Llama2Runner<T> {
                 x
             };
 
+/**
+        struct ggml_cgraph * gf = ggml_new_graph_custom(ctx0, LLAMA_MAX_NODES, false);
+
+        const int64_t n_embd_head = hparams.n_embd_head_v;
+        const int64_t n_embd_gqa  = hparams.n_embd_v_gqa();
+        GGML_ASSERT(n_embd_head == hparams.n_embd_head_k);
+
+        struct ggml_tensor * cur;
+        struct ggml_tensor * attn_norm_output;
+        struct ggml_tensor * ffn_output;
+        struct ggml_tensor * inpL;
+
+        inpL = llm_build_inp_embd(ctx0, lctx, hparams, batch, model.tok_embd, cb);
+
+        // inp_pos - contains the positions
+        struct ggml_tensor * inp_pos = build_inp_pos();
+
+        // KQ_mask (mask for 1 head, it will be broadcasted to all heads)
+        struct ggml_tensor * KQ_mask = build_inp_KQ_mask();
+
+        for (int il = 0; il < n_layer; ++il) {
+            attn_norm_output = llm_build_norm(ctx0, inpL, hparams,
+                    model.layers[il].attn_norm,
+                    model.layers[il].attn_norm_b,
+                    LLM_NORM, cb, il);
+            cb(attn_norm_output, "attn_norm", il);
+
+            // self-attention
+            {
+                struct ggml_tensor * Qcur = nullptr;
+                struct ggml_tensor * Kcur = nullptr;
+                struct ggml_tensor * Vcur = nullptr;
+
+                if (model.layers[il].wqkv) {
+                    cur = ggml_mul_mat(ctx0, model.layers[il].wqkv, attn_norm_output);
+                    cb(cur, "wqkv", il);
+
+                    cur = ggml_add(ctx0, cur, model.layers[il].bqkv);
+                    cb(cur, "bqkv", il);
+
+                    Qcur = ggml_cont(ctx0, ggml_view_2d(ctx0, cur, n_embd,     n_tokens, cur->nb[1], 0*sizeof(float)*(n_embd)));
+                    Kcur = ggml_cont(ctx0, ggml_view_2d(ctx0, cur, n_embd_gqa, n_tokens, cur->nb[1], 1*sizeof(float)*(n_embd)));
+                    Vcur = ggml_cont(ctx0, ggml_view_2d(ctx0, cur, n_embd_gqa, n_tokens, cur->nb[1], 1*sizeof(float)*(n_embd + n_embd_gqa)));
+                } else {
+                    Qcur = ggml_add(ctx0, ggml_mul_mat(ctx0, model.layers[il].wq, attn_norm_output), model.layers[il].bq);
+                    Kcur = ggml_add(ctx0, ggml_mul_mat(ctx0, model.layers[il].wk, attn_norm_output), model.layers[il].bk);
+                    Vcur = ggml_add(ctx0, ggml_mul_mat(ctx0, model.layers[il].wv, attn_norm_output), model.layers[il].bv);
+                }
+
+
+    GGML_API struct ggml_tensor * ggml_reshape_3d(
+            struct ggml_context * ctx,
+            struct ggml_tensor  * a,
+            int64_t               ne0,
+            int64_t               ne1,
+            int64_t               ne2);
+    )
+
+    GGML_API struct ggml_tensor * ggml_reshape_2d(
+            struct ggml_context * ctx,
+            struct ggml_tensor  * a,
+            int64_t               ne0,
+            int64_t               ne1);
+
+    GGML_API struct ggml_tensor * ggml_view_2d(
+            struct ggml_context * ctx,
+            struct ggml_tensor  * a,
+            int64_t               ne0,
+            int64_t               ne1,
+            size_t                nb1, // row stride in bytes
+            size_t                offset);
+
+
+*/
+
+            println!("----1111111------");
+
+
             // 这个就是 self-attention
             // matmul qkv for every head
             let (q, k, v) = {
                 let qkv = self.weights.wqkv[l].matmul_vec(&x)?;
                 let qkv = qkv.add_inplace(&self.weights.bqkv[l])?;
 
-                let q = qkv.clone().reshape(&[embed_dim, n_batch])?.contiguous()?;
-                let k = qkv.clone().reshape(&[n_embd_gqa, n_batch])?.contiguous()?;
-                let v = qkv.reshape(&[n_embd_gqa, n_batch])?.contiguous()?;
+                println!("----222220000----");
+
+
+//Error: Error { kind: TensorError, message: "invalid shape [2560, 1] for a tensor's origin shape [1, 7680]", cause: None }
+/**
+                    cur = ggml_mul_mat(ctx0, model.layers[il].wqkv, attn_norm_output);
+                    cb(cur, "wqkv", il);
+
+                    cur = ggml_add(ctx0, cur, model.layers[il].bqkv);
+                    cb(cur, "bqkv", il);
+
+Qcur = ggml_cont(ctx0, ggml_view_2d(ctx0, cur, n_embd,     n_tokens, cur->nb[1], 0*sizeof(float)*(n_embd)));
+Kcur = ggml_cont(ctx0, ggml_view_2d(ctx0, cur, n_embd_gqa, n_tokens, cur->nb[1], 1*sizeof(float)*(n_embd)));
+Vcur = ggml_cont(ctx0, ggml_view_2d(ctx0, cur, n_embd_gqa, n_tokens, cur->nb[1], 1*sizeof(float)*(n_embd + n_embd_gqa)));
+
+7680
+
+n_embd_gqa=1024
+*/
+               println!("\n\n----okok ---00000---");
+
+               let mut q = T::alloc(&[n_batch, embed_dim], GGMLType::F32, self.device.clone())?;
+               q.copy_rows_from(&qkv, &[0])?;
+               q = q.reshape(&[embed_dim, n_batch])?.contiguous()?;
+               let mut k = T::alloc(&[n_batch, embed_dim], GGMLType::F32, self.device.clone())?;
+               k.copy_rows_from(&qkv, &[embed_dim])?;
+               k = k.reshape(&[embed_dim, n_batch])?.contiguous()?;
+               let mut v = T::alloc(&[n_batch, embed_dim], GGMLType::F32, self.device.clone())?;
+               v.copy_rows_from(&qkv, &[embed_dim + embed_dim])?;
+               v = v.reshape(&[embed_dim, n_batch])?.contiguous()?;
+
+               println!("\n\n----okok---");
+
+//println!("n_batch={:?} embed_dim={:?}", n_batch, embed_dim);
+//println!("tokens={:?}", tokens);
+//x.copy_rows_from(&self.weights.token_embed, tokens)?;
+
+                q = q.with_name("Qcur".to_string());
+                k = k.with_name("Kcur".to_string());
+                v = v.with_name("Vcur".to_string());
+
 
                 (q, k, v)
             };
+
+
+
+
+            println!("---2222222------");
 
             // Qcur = ggml_reshape_3d(ctx0, Qcur, n_embd_head, n_head,    n_tokens);
             // Kcur = ggml_reshape_3d(ctx0, Kcur, n_embd_head, n_head_kv, n_tokens);
 
             // ROPE
             let (q, k) = {
+                // reshape 3d
                 let q = q.reshape(&[n_batch, n_heads, head_dim])?;
                 let k = k.reshape(&[n_batch, n_kv_heads, head_dim])?;
 
@@ -406,18 +587,30 @@ impl<'a, T: Tensor> Llama2Runner<T> {
 
                 (q, k)
             };
-
+            x = self.forward_ffn(x, l, pos, Activation::GeLU)?;
+println!("----333333---");
             x = self.forward_multi_query_attention(
                 q, k, v, l, pos, n_kv_heads, n_heads, embed_dim, head_dim, n_batch,
             )?;
             x = x.with_name(format!("attn_out:{}:{}", l, pos));
+println!("----444444---");
 
             // residual connection back into x
             x = x.add_inplace(&x_attn_orig)?;
+println!("----55555---");
+
+//println!("self.weights.rms_ffn_weight={:?}", self.weights.rms_ffn_weight);
+//blk.{}.ffn_norm.weight
+
+
+
+
+
 
             // ffn
-            x = self.forward_ffn(x, l, pos, Activation::SiLU)?;
+            x = self.forward_ffn(x, l, pos, Activation::GeLU)?;
             x = x.with_name(format!("ffn_out:{}:{}", l, pos));
+println!("----6666---");
         }
 
         // final rmsnorm
@@ -426,6 +619,7 @@ impl<'a, T: Tensor> Llama2Runner<T> {
             x = x.mul_inplace(&self.weights.rms_final_weight)?;
             x.with_name(format!("final_rmsnorm:{}", pos))
         };
+println!("----7777---");
 
         Ok(x)
     }
@@ -586,22 +780,80 @@ impl<'a, T: Tensor> Llama2Runner<T> {
         Ok(x)
     }
 
+
+
+/**
+qwen2
+            cur = llm_build_ffn(ctx0, cur,
+                    model.layers[il].ffn_up,   NULL,
+                    model.layers[il].ffn_gate, NULL,
+                    model.layers[il].ffn_down, NULL,
+                    NULL,
+                    LLM_FFN_SILU, LLM_FFN_PAR, cb, il);
+            cb(cur, "ffn_out", il);
+
+phi2
+                ffn_output = llm_build_ffn(ctx0, attn_norm_output,
+                        model.layers[il].ffn_up,   model.layers[il].ffn_up_b,
+                        NULL,                      NULL,
+                        model.layers[il].ffn_down, model.layers[il].ffn_down_b,
+                        NULL,
+                        LLM_FFN_GELU, LLM_FFN_SEQ, cb, il);
+                cb(ffn_output, "ffn_out", il);
+
+
+
+static struct ggml_tensor * llm_build_ffn(
+        struct ggml_context * ctx,
+         struct ggml_tensor * cur,
+         struct ggml_tensor * up,
+         struct ggml_tensor * up_b,
+         struct ggml_tensor * gate,
+         struct ggml_tensor * gate_b,
+         struct ggml_tensor * down,
+         struct ggml_tensor * down_b,
+         struct ggml_tensor * act_scales,
+            llm_ffn_op_type   type_op,
+          llm_ffn_gate_type   type_gate,
+         const llm_build_cb & cb,
+                        int   il) {
+    struct ggml_tensor * tmp = ggml_mul_mat(ctx, up, cur);
+    cb(tmp, "ffn_up", il);
+
+*/
+
+
     fn forward_ffn(&self, mut x: T, l: usize, _pos: usize, activation: Activation) -> Result<T> {
         // save for redidual connection
         let x_orig_ffn = x.dup()?; // (n_batch, embed_dim)
 
         // ffn rmsnorm
         x = {
-            x = x.rms_norm_inplace(1e-5)?;
-            x = x.mul_inplace(&self.weights.rms_ffn_weight[l])?;
-            x
+            if !self.weights.rms_ffn_weight.is_empty() {
+                x = x.rms_norm_inplace(1e-5)?;
+                x = x.mul_inplace(&self.weights.rms_ffn_weight[l])?;
+                x
+            } else {
+                x
+            }
         };
+
+        if !self.weights.ffn_up_bias.is_empty() {
+            //x = x.matmul_vec(&self.weights.ffn_up_weight[l])?;
+            x = x.mul_inplace(&self.weights.ffn_up_weight[l])?;
+            x = x.add_inplace(&self.weights.ffn_up_bias[l])?;
+        }
+
 
         // Now for FFN in PyTorch we have: self.down_proj(F.silu(self.gate_proj(x)) * self.up_proj(x))
         // first calculate self.w1(x) and self.w3(x)
         // w1: (hidden_dim, embed_dim) @ x (n_batch, embed_dim, ) => (n_batch, hidden_dim, )
         // w3: (hidden_dim, embed_dim) @ x (n_batch, embed_dim, ) => (n_batch, hidden_dim, )
-        let mut h1 = self.weights.ffn_gate_weight[l].matmul_vec(&x)?;
+        let mut h1 = if !self.weights.ffn_gate_weight.is_empty() {
+            self.weights.ffn_gate_weight[l].matmul_vec(&x)?
+        } else {
+            x.clone()
+        };
         let h2 = self.weights.ffn_up_weight[l].matmul_vec(&x)?;
 
         // F.silu; silu(x)=x*σ(x),where σ(x) is the logistic sigmoid

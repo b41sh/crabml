@@ -730,8 +730,51 @@ impl CpuLlamaModelLoader {
 ===----key----"phi2.attention.head_count"
 
 ===----key----"phi2.rope.dimension_count"
+
+
+
+
+
+
+===----key----"general.name"
+===----key----"general.file_type"
+===----key----"general.quantization_version"
+===----key----"general.architecture"
+
+===----key----"tokenizer.ggml.token_type"
+===----key----"tokenizer.ggml.add_bos_token"
+===----key----"tokenizer.ggml.bos_token_id"
+===----key----"tokenizer.ggml.unknown_token_id"
+===----key----"tokenizer.ggml.model"
+===----key----"tokenizer.ggml.tokens"
+===----key----"tokenizer.ggml.merges"
+===----key----"tokenizer.ggml.eos_token_id"
+
+
+===----key----"phi2.block_count"
+===----key----"phi2.attention.head_count_kv"
+===----key----"phi2.attention.head_count"
+===----key----"phi2.attention.layer_norm_epsilon"
+
+===----key----"phi2.embedding_length"
+===----key----"phi2.feed_forward_length"
+===----key----"phi2.rope.dimension_count"
+===----key----"phi2.context_length"
+
+
+
 */
     fn load_config(&self, gf: &GGUFFile) -> Result<LlamaConfig> {
+
+        let meta = gf.metadata();
+        for key in meta.metadata_kv.keys() {
+            println!("===----key----{:?}", key);
+        }
+        println!("\n\n\n\n");
+
+
+
+
         // let rope_dims = gf.metadata().get_u32("llama.rope.dimension_count").unwrap();
         let (architecture, prefix) = match gf.metadata().get_string("general.architecture").unwrap()
         {
