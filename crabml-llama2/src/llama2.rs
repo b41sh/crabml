@@ -603,8 +603,8 @@ n_embd_gqa=1024
 
                 //Qcur = ggml_reshape_3d(ctx0, Qcur, n_embd_head, n_head,    n_tokens);
                 //Kcur = ggml_reshape_3d(ctx0, Kcur, n_embd_head, n_head_kv, n_tokens);
-                q = q.reshape(&[embed_dim, n_heads, n_batch])?;
-                k = k.reshape(&[embed_dim, n_kv_heads, n_batch])?;
+                //q = q.reshape(&[embed_dim, n_heads, n_batch])?;
+                //k = k.reshape(&[embed_dim, n_kv_heads, n_batch])?;
 
 
 
@@ -622,6 +622,12 @@ n_embd_gqa=1024
             // ROPE
             let (q, k) = {
                 // reshape 3d
+                //let q = q.reshape(&[n_batch, n_heads, embed_dim])?;
+                //let k = k.reshape(&[n_batch, n_kv_heads, embed_dim])?;
+
+                //let q = q.reshape(&[embed_dim, n_heads, n_batch])?;
+                //let k = k.reshape(&[embed_dim, n_kv_heads, n_batch])?;
+
                 let q = q.reshape(&[n_batch, n_heads, head_dim])?;
                 let k = k.reshape(&[n_batch, n_kv_heads, head_dim])?;
 
