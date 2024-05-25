@@ -81,77 +81,6 @@ pub struct LlamaWeights<T: Tensor> {
     pub output_weight: Option<T>, // (vocab_size, dim)
 }
 
-/// struct llama_layer {
-/// normalization
-/// struct ggml_tensor * attn_norm;
-/// struct ggml_tensor * attn_norm_b;
-/// struct ggml_tensor * attn_norm_2;
-/// struct ggml_tensor * attn_norm_2_b;
-/// struct ggml_tensor * attn_q_norm;
-/// struct ggml_tensor * attn_q_norm_b;
-/// struct ggml_tensor * attn_k_norm;
-/// struct ggml_tensor * attn_k_norm_b;
-/// struct ggml_tensor * attn_out_norm;
-/// struct ggml_tensor * attn_out_norm_b;
-///
-/// attention
-/// struct ggml_tensor * wq;
-/// struct ggml_tensor * wk;
-/// struct ggml_tensor * wv;
-/// struct ggml_tensor * wo;
-/// struct ggml_tensor * wqkv;
-///
-/// attention bias
-/// struct ggml_tensor * bq;
-/// struct ggml_tensor * bk;
-/// struct ggml_tensor * bv;
-/// struct ggml_tensor * bo;
-/// struct ggml_tensor * bqkv;
-///
-/// normalization
-/// struct ggml_tensor * ffn_norm;
-/// struct ggml_tensor * ffn_norm_b;
-/// struct ggml_tensor * layer_out_norm;
-/// struct ggml_tensor * layer_out_norm_b;
-///
-/// ff
-/// struct ggml_tensor * ffn_gate; // w1
-/// struct ggml_tensor * ffn_down; // w2
-/// struct ggml_tensor * ffn_up;   // w3
-///
-/// ff MoE
-/// struct ggml_tensor * ffn_gate_inp;
-/// struct ggml_tensor * ffn_gate_exps;
-/// struct ggml_tensor * ffn_down_exps;
-/// struct ggml_tensor * ffn_up_exps ;
-///
-/// ff shared expert (shexp)
-/// struct ggml_tensor * ffn_gate_inp_shexp;
-/// struct ggml_tensor * ffn_gate_shexp;
-/// struct ggml_tensor * ffn_down_shexp;
-/// struct ggml_tensor * ffn_up_shexp;
-///
-/// ff bias
-/// struct ggml_tensor * ffn_down_b; // b2
-/// struct ggml_tensor * ffn_up_b;   // b3
-/// struct ggml_tensor * ffn_act;
-///
-/// mamba proj
-/// struct ggml_tensor * ssm_in;
-/// struct ggml_tensor * ssm_x;
-/// struct ggml_tensor * ssm_dt;
-/// struct ggml_tensor * ssm_out;
-///
-/// mamba
-/// struct ggml_tensor * ssm_conv1d;
-/// struct ggml_tensor * ssm_a;
-/// struct ggml_tensor * ssm_d;
-///
-/// mamba bias
-/// struct ggml_tensor * ssm_conv1d_b;
-/// struct ggml_tensor * ssm_dt_b;
-/// };
-
 pub trait LlamaModel {
     type T: Tensor;
 
@@ -299,75 +228,6 @@ impl CpuLlamaModelLoader {
         let mut rms_ffn_weight = vec![];
         let mut rms_att_bias = vec![];
 
-        /// --tensor name="token_embd.weight"
-        ///
-        /// """
-        /// blk.0.attn_norm.bias
-        /// blk.0.attn_norm.weight
-        /// blk.0.attn_qkv.bias
-        /// blk.0.attn_qkv.weight
-        /// blk.0.attn_output.bias
-        /// blk.0.attn_output.weight
-        ///
-        /// blk.0.ffn_up.bias
-        /// blk.0.ffn_up.weight
-        /// blk.0.ffn_down.bias
-        /// blk.0.ffn_down.weight
-        /// """
-        ///
-        /// """
-        /// blk.0.attn_q.weight
-        /// blk.0.attn_k.weight
-        /// blk.0.attn_v.weight
-        /// blk.0.attn_output.weight
-        /// blk.0.attn_norm.weight
-        ///
-        /// blk.0.ffn_gate.weight
-        /// blk.0.ffn_down.weight
-        /// blk.0.ffn_up.weight
-        /// blk.0.ffn_norm.weight
-        /// """
-        ///
-        ///
-        /// llm
-        /// LLM_ARCH_LLAMA,
-        /// {
-        /// { LLM_TENSOR_TOKEN_EMBD,      "token_embd" },
-        /// { LLM_TENSOR_OUTPUT_NORM,     "output_norm" },
-        /// { LLM_TENSOR_OUTPUT,          "output" },
-        /// { LLM_TENSOR_ROPE_FREQS,      "rope_freqs" },
-        /// { LLM_TENSOR_ATTN_NORM,       "blk.%d.attn_norm" },
-        /// { LLM_TENSOR_ATTN_Q,          "blk.%d.attn_q" },
-        /// { LLM_TENSOR_ATTN_K,          "blk.%d.attn_k" },
-        /// { LLM_TENSOR_ATTN_V,          "blk.%d.attn_v" },
-        /// { LLM_TENSOR_ATTN_OUT,        "blk.%d.attn_output" },
-        /// { LLM_TENSOR_ATTN_ROT_EMBD,   "blk.%d.attn_rot_embd" },
-        /// { LLM_TENSOR_FFN_GATE_INP,    "blk.%d.ffn_gate_inp" },
-        /// { LLM_TENSOR_FFN_NORM,        "blk.%d.ffn_norm" },
-        /// { LLM_TENSOR_FFN_GATE,        "blk.%d.ffn_gate" },
-        /// { LLM_TENSOR_FFN_DOWN,        "blk.%d.ffn_down" },
-        /// { LLM_TENSOR_FFN_UP,          "blk.%d.ffn_up" },
-        /// { LLM_TENSOR_FFN_GATE_EXP,    "blk.%d.ffn_gate.%d" },
-        /// { LLM_TENSOR_FFN_DOWN_EXP,    "blk.%d.ffn_down.%d" },
-        /// { LLM_TENSOR_FFN_UP_EXP,      "blk.%d.ffn_up.%d" },
-        /// { LLM_TENSOR_FFN_GATE_EXPS,   "blk.%d.ffn_gate_exps" },
-        /// { LLM_TENSOR_FFN_DOWN_EXPS,   "blk.%d.ffn_down_exps" },
-        /// { LLM_TENSOR_FFN_UP_EXPS,     "blk.%d.ffn_up_exps" },
-        /// },
-        ///
-        ///
-        /// LLM_ARCH_PHI2,
-        /// {
-        /// { LLM_TENSOR_TOKEN_EMBD,      "token_embd" },
-        /// { LLM_TENSOR_OUTPUT_NORM,     "output_norm" },
-        /// { LLM_TENSOR_OUTPUT,          "output" },
-        /// { LLM_TENSOR_ATTN_NORM,       "blk.%d.attn_norm" },
-        /// { LLM_TENSOR_ATTN_QKV,        "blk.%d.attn_qkv" },
-        /// { LLM_TENSOR_ATTN_OUT,        "blk.%d.attn_output" },
-        /// { LLM_TENSOR_FFN_DOWN,        "blk.%d.ffn_down" },
-        /// { LLM_TENSOR_FFN_UP,          "blk.%d.ffn_up" },
-        /// },
-        /// },
         match gf.architecture() {
             "llama" | "gemma" => {
                 for layer in 0..n_layers {
@@ -611,7 +471,6 @@ impl CpuLlamaModelLoader {
         // the dimensions stored in GGUF seems in a reverse order of numpy's shape
         let dims = info.dimensions().iter().rev().copied().collect::<Vec<_>>();
         let tensor = CpuTensor::from_bytes(info.data(), info.typ(), &dims, device.clone())?;
-
         Ok(Some(tensor))
     }
 
@@ -688,94 +547,7 @@ impl CpuLlamaModelLoader {
         }
     }
 
-/**
-    fn load_config(&self, gf: &GGUFFile) -> Result<Llama2Config> {
-        let meta = gf.metadata();
-        for key in meta.metadata_kv.keys() {
-            println!("===----key----{:?}", key);
-        }
-
-        let tokenizer_kind = gf
-            .metadata()
-            .get_string("tokenizer.ggml.model")
-            .unwrap()
-            .to_string();
-
-        println!("tokenizer_kind={:?}", tokenizer_kind);
-*/
-/**
-===----key----"tokenizer.ggml.bos_token_id"
-===----key----"tokenizer.ggml.eos_token_id"
-===----key----"tokenizer.ggml.merges"
-===----key----"tokenizer.ggml.model"
-===----key----"tokenizer.ggml.token_type"
-===----key----"tokenizer.ggml.tokens"
-===----key----"tokenizer.ggml.unknown_token_id"
-===----key----"tokenizer.ggml.add_bos_token"
-
-
-===----key----"general.name"
-===----key----"general.architecture"
-===----key----"general.quantization_version"
-===----key----"general.file_type"
-
-
-===----key----"phi2.context_length"
-===----key----"phi2.embedding_length"
-===----key----"phi2.feed_forward_length"
-===----key----"phi2.block_count"
-
-===----key----"phi2.attention.head_count_kv"
-===----key----"phi2.attention.layer_norm_epsilon"
-===----key----"phi2.attention.head_count"
-
-===----key----"phi2.rope.dimension_count"
-
-
-
-
-
-
-===----key----"general.name"
-===----key----"general.file_type"
-===----key----"general.quantization_version"
-===----key----"general.architecture"
-
-===----key----"tokenizer.ggml.token_type"
-===----key----"tokenizer.ggml.add_bos_token"
-===----key----"tokenizer.ggml.bos_token_id"
-===----key----"tokenizer.ggml.unknown_token_id"
-===----key----"tokenizer.ggml.model"
-===----key----"tokenizer.ggml.tokens"
-===----key----"tokenizer.ggml.merges"
-===----key----"tokenizer.ggml.eos_token_id"
-
-
-===----key----"phi2.block_count"
-===----key----"phi2.attention.head_count_kv"
-===----key----"phi2.attention.head_count"
-===----key----"phi2.attention.layer_norm_epsilon"
-
-===----key----"phi2.embedding_length"
-===----key----"phi2.feed_forward_length"
-===----key----"phi2.rope.dimension_count"
-===----key----"phi2.context_length"
-
-
-
-*/
     fn load_config(&self, gf: &GGUFFile) -> Result<LlamaConfig> {
-
-        let meta = gf.metadata();
-        for key in meta.metadata_kv.keys() {
-            println!("===----key----{:?}", key);
-        }
-        println!("\n\n\n\n");
-
-
-
-
-        // let rope_dims = gf.metadata().get_u32("llama.rope.dimension_count").unwrap();
         let (architecture, prefix) = match gf.metadata().get_string("general.architecture").unwrap()
         {
             "llama" => (ModelArchitecture::Llama, "llama"),
@@ -812,9 +584,10 @@ impl CpuLlamaModelLoader {
             .metadata()
             .get_u32(&format!("{}.attention.head_count_kv", prefix))
             .unwrap() as usize;
-        let seq_len = gf.metadata()
-                .get_u32(&format!("{}.context_length", prefix))
-                .unwrap() as usize;
+        let seq_len = gf
+            .metadata()
+            .get_u32(&format!("{}.context_length", prefix))
+            .unwrap() as usize;
         let vocab_size = gf
             .metadata()
             .get_string_array("tokenizer.ggml.tokens")
